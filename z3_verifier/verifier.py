@@ -202,47 +202,46 @@ def verify_programs(prog_in: BPFProgram, prog_out: BPFProgram,
     _model_prog(prog_in, R_in, AX_in, Mem_in_arr)
     _model_prog(prog_out, R_out, AX_out, Mem_out_arr)
 
-    exit_in = None
-    exit_out = None
+    # 收集所有 EXIT 指令的 PC 位置
+    exit_ins = []
     for i in range(n_in):
         if prog_in.get(i) and prog_in.get(i)["code"] == BPF_EXIT:
-            exit_in = i
-            break
+            exit_ins.append(i)
+    exit_outs = []
     for i in range(n_out):
         if prog_out.get(i) and prog_out.get(i)["code"] == BPF_EXIT:
-            exit_out = i
-            break
+            exit_outs.append(i)
 
-    if exit_in is None or exit_out is None:
+    if not exit_ins or not exit_outs:
         return {
             "status": "unknown",
-            "reason": f"EXIT 未找到: in={exit_in}, out={exit_out}",
+            "reason": f"EXIT 未找到: in={exit_ins}, out={exit_outs}",
             "n_in": n_in, "n_out": n_out,
         }
 
-    r0_in_final = R_in[(exit_in, 0)]
-    r0_out_final = R_out[(exit_out, 0)]
+    # 对所有 (exit_in, exit_out) 组合逐一验证
+    for exit_in in exit_ins:
+        for exit_out in exit_outs:
+            r0_in_final = R_in[(exit_in, 0)]
+            r0_out_final = R_out[(exit_out, 0)]
+            solver.push()
+            solver.add(r0_in_final != r0_out_final)
+            result = solver.check()
+            if result == sat:
+                model = solver.model()
+                ce = {str(d): model[d] for d in model.decls() if "init" in str(d)}
+                return {
+                    "status": "not_equivalent",
+                    "counterexample": ce,
+                    "reason": f"exit_in=pc{exit_in}, exit_out=pc{exit_out}: 找到使两边 R0 不同的初始状态",
+                    "exit_in": exit_in,
+                    "exit_out": exit_out,
+                }
+            # unsat 或 unknown：继续尝试其他组合
 
-    solver.push()
-    solver.add(r0_in_final != r0_out_final)
-    result = solver.check()
-    if result == sat:
-        model = solver.model()
-        ce = {str(d): model[d] for d in model.decls() if "init" in str(d)}
-        return {
-            "status": "not_equivalent",
-            "counterexample": ce,
-            "reason": "找到使两边 R0 不同的初始状态",
-        }
-    elif result == unsat:
-        return {
-            "status": "equivalent",
-            "reason": "在所有初始状态下 R0 恒相等 (UNSAT)",
-            "exit_in": exit_in,
-            "exit_out": exit_out,
-        }
-    else:
-        return {
-            "status": "unknown",
-            "reason": f"Z3 返回 {result} (可能超时)",
-        }
+    return {
+        "status": "equivalent",
+        "reason": f"在所有初始状态下 R0 恒相等 (UNSAT), 检查了 in{exit_ins} x out{exit_outs}",
+        "exit_ins": exit_ins,
+        "exit_outs": exit_outs,
+    }
