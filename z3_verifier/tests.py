@@ -29,12 +29,12 @@ def test_udiv32_zero_div():
         ALU_K(0x5, 1, 8),         # 2: (54) w1 &= 8
         ALU_K(0x6, 1, 1),         # 3: (44) w1 |= 1
         MOV_K(2, 0),              # 4: (b4) w2 = 0
-        JMP_K(0x5, 2, 1, 0),     # 5: (56) if w2 != 0x0 goto pc+2
-        ALU(0x7, 1, 1),           # 6: (a4) w1 ^= w1
-        JA(0),                    # 7: (05) goto pc+1
-        ALU(0x3, 1, 2),          # 8: (3c) w1 /= w2
-        MOV_K(0, 0),              # 9: (b7) r0 = 0
-        EXIT(),                   # 10: (95) exit
+        ALU(0x3, 1, 2),           # 5: (3c) w1 /= w2
+        JMP_K(0x5, 1, 2, 0),
+        MOV_K(1, 0),
+        EXIT(),
+        LDX(3, 0, 1, 0),
+        EXIT(),
     ]
 
     output_raw = [
