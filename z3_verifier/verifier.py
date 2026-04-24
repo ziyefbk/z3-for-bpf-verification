@@ -103,7 +103,15 @@ def verify_programs(prog_in: BPFProgram, prog_out: BPFProgram,
 
             if code == BPF_CALL:
                 new_regs = dict(regs_cur)
-                new_regs[0] = BitVecVal(0, 64)
+                imm_val = insn.get("imm", 0)
+                if imm_val == 6000:  # bpf_user_rnd_u32
+                    new_regs[0] = BitVec('user_rnd_%d_pc%d' % (imm_val, cur_pc), 32).cast(64)
+                elif imm_val == 7:   # bpf_ktime_get_ns
+                    new_regs[0] = BitVec('ktime_%d' % cur_pc, 64)
+                elif imm_val == 27:  # bpf_get_prandom_u32
+                    new_regs[0] = BitVec('prnd_%d' % cur_pc, 64)
+                else:
+                    new_regs[0] = BitVec('call_%d_pc%d' % (imm_val, cur_pc), 64)
                 for r in range(11):
                     solver.add(R[(cur_pc + 1, r)] == new_regs.get(r, regs_cur[r]))
                 queue.append(cur_pc + 1)
