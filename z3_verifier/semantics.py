@@ -83,7 +83,7 @@ def alu32(op: int, dst: BitVecRef, src: BitVecRef,
         return result, ax
     elif op == 0xa:
         shamt = Extract(31, 0, src32) & BitVecVal(31, 32)
-        result = ZeroExt(32, Ashr(Extract(31, 0, dst32), shamt))
+        result = ZeroExt(32, Extract(31, 0, dst32) >> shamt)
         return result, ax
     elif op == 0xb:
         return src32, ax

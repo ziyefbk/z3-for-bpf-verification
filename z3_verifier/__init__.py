@@ -6,6 +6,12 @@ Z3 BPF Validator
 核心思想：给定两个 BPF 程序（原始 bytecode 和 verifier 输出的 bytecode），
 在相同的初始状态下，验证两者是否产生相同的 R0（返回值）。
 
+add (st.PC = 0)
+st1 := bpf_interpreter1(st, input_bytecode)
+st2 := bpf_interpreter2(st, output_bytecode)
+add (eval_REG(st1.R0) \neq eval_REG(st2.R0) )
+if (result = unsat) {SUCC} else {counerexample}
+
 验证策略：
 1. 将 BPF bytecode 转换为 Z3 符号表达式
 2. 对每个程序做符号执行，得到 R0 的 Z3 符号值

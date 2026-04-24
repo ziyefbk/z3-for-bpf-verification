@@ -60,7 +60,7 @@ BPF_JMP = {
 }
 
 BPF_EXIT = 0x90
-BPF_CALL = 0x80
+BPF_CALL = 0x85
 
 
 def _get_cls(code: int) -> str:
