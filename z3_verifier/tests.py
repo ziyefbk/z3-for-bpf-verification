@@ -1,7 +1,3 @@
-"""
-内置测试用例。
-"""
-
 from .interpreter import (
     parse_bytecode, bytecode_to_str, BPFProgram,
     ALU64, ALU64_K, ALU, ALU_K, JMP, JMP_K, LDX, STX, ST,
@@ -31,7 +27,7 @@ def test_udiv32_zero_div():
         MOV_K(2, 0),              # 4: (b4) w2 = 0
         ALU(0x3, 1, 2),           # 5: (3c) w1 /= w2
         JMP_K(0x5, 1, 2, 0),
-        MOV_K(1, 0),
+        MOV_K(0, 0),
         EXIT(),
         LDX(3, 0, 1, 0),
         EXIT(),
@@ -61,7 +57,7 @@ def test_udiv32_zero_div():
 
     prog_in = BPFProgram(insns_in, "input")
     prog_out = BPFProgram(insns_out, "output")
-    result = verify_programs(prog_in, prog_out, {}, r0_equal_pcs=[(1, 1)])
+    result = verify_programs(prog_in, prog_out, {}, r0_equal_pcs=[(1, 1)], verbose=True)
     print("=== RESULT ===")
     print(result)
     return result

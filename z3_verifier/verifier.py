@@ -5,6 +5,7 @@ Z3 符号执行验证器。
 在相同的初始状态下，验证两者是否产生相同的 R0（返回值）。
 """
 
+from typing import Any
 from z3 import *
 
 from .interpreter import BPFProgram
@@ -15,7 +16,8 @@ from .opcode import BPF_EXIT, BPF_CALL
 def verify_programs(prog_in: BPFProgram, prog_out: BPFProgram,
                     reg_constraints: dict = None,
                     extra_constraints: list = None,
-                    r0_equal_pcs: list = None) -> dict:
+                    r0_equal_pcs: list = None,
+                    verbose: bool = False) -> dict:
     """对两个 BPF 程序做符号执行，验证 exit 时 R0 相等。
 
     Args:
@@ -25,6 +27,7 @@ def verify_programs(prog_in: BPFProgram, prog_out: BPFProgram,
         extra_constraints: 额外的 Z3 约束表达式列表
         r0_equal_pcs: 指定哪些 (pc_in, pc_out) 位点的 R0 应该相等，
                       默认 [(1, 1)]，适用于 CALL(6000) 后 R0 被赋值的常见场景
+        verbose: 若为 True，输出每个 exit 组合的完整 Z3 约束表达式
     """
 
     # 调试：打印 bytecode 顺序和 JMP 目标解析
@@ -252,7 +255,7 @@ def verify_programs(prog_in: BPFProgram, prog_out: BPFProgram,
                 continue
 
             if (code & 0x7) == 0 and (code >> 5) == 0:
-                new_regs = dict(regs_cur)
+                new_regs = dict[int, Any](regs_cur)
                 combined = insn.get("combined_imm", imm)
                 new_regs[dst_i] = BitVecVal(combined, 64)
                 for r in range(11):
@@ -317,8 +320,21 @@ def verify_programs(prog_in: BPFProgram, prog_out: BPFProgram,
             r0_out_final = R_out[(exit_out, 0)]
             solver.push()
             solver.add(r0_in_final != r0_out_final)
+
+            if verbose:
+                neq_solver = Solver()
+                neq_solver.set(timeout=30000)
+                for a in solver.assertions():
+                    neq_solver.add(a)
+                neq_solver.add(r0_in_final != r0_out_final)
+                smt2 = neq_solver.to_smt2()
+                smt2_lines = smt2.split("\n")
+                for line in smt2_lines:
+                    if line.strip():
+                        print(line)
+                print()
+
             result = solver.check()
-            print(f"[DEBUG] check R_in[{exit_in}] != R_out[{exit_out}]: {result}")
             if result == sat:
                 model = solver.model()
                 ce = {str(d): model[d] for d in model.decls() if "init" in str(d)}
