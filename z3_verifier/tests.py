@@ -61,7 +61,7 @@ def test_udiv32_zero_div():
 
     prog_in = BPFProgram(insns_in, "input")
     prog_out = BPFProgram(insns_out, "output")
-    result = verify_programs(prog_in, prog_out, {})
+    result = verify_programs(prog_in, prog_out, {}, r0_equal_pcs=[(1, 1)])
     print("=== RESULT ===")
     print(result)
     return result

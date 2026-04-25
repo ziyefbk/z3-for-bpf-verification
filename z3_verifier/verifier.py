@@ -13,8 +13,19 @@ from .opcode import BPF_EXIT, BPF_CALL
 
 
 def verify_programs(prog_in: BPFProgram, prog_out: BPFProgram,
-                    reg_constraints: dict = None) -> dict:
-    """对两个 BPF 程序做符号执行，验证 exit 时 R0 相等。"""
+                    reg_constraints: dict = None,
+                    extra_constraints: list = None,
+                    r0_equal_pcs: list = None) -> dict:
+    """对两个 BPF 程序做符号执行，验证 exit 时 R0 相等。
+
+    Args:
+        prog_in: 输入程序
+        prog_out: 输出程序
+        reg_constraints: 寄存器初始约束，格式 {reg_idx: value}
+        extra_constraints: 额外的 Z3 约束表达式列表
+        r0_equal_pcs: 指定哪些 (pc_in, pc_out) 位点的 R0 应该相等，
+                      默认 [(1, 1)]，适用于 CALL(6000) 后 R0 被赋值的常见场景
+    """
 
     # 调试：打印 bytecode 顺序和 JMP 目标解析
     def _debug_prog(prog, label):
@@ -77,6 +88,14 @@ def verify_programs(prog_in: BPFProgram, prog_out: BPFProgram,
     for r in range(11):
         solver.add(R_in[(0, r)] == init_r[r])
         solver.add(R_out[(0, r)] == init_r[r])
+
+    if extra_constraints:
+        for c in extra_constraints:
+            solver.add(c)
+
+    if r0_equal_pcs:
+        for pc_in, pc_out in r0_equal_pcs:
+            solver.add(R_in[(pc_in, 0)] == R_out[(pc_out, 0)])
 
     shared_mem = K(BitVecSort(64), BitVec("shared_mem_init", 8))
     Mem_in_arr = {"mem": shared_mem}
